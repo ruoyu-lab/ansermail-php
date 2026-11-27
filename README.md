@@ -1,0 +1,132 @@
+# ansermail/ansermail (PHP)
+
+The PHP SDK for [Anser](https://mail.ruoyulab.dev): send and receive email through its HTTP API. PHP 8.1+ with the curl
+extension, no other dependencies; checked with PHPStan at its strictest level.
+
+## Install
+
+```bash
+composer config repositories.ansermail vcs https://github.com/ruoyu-lab/ansermail-php
+composer require ansermail/ansermail
+```
+
+It is not on Packagist yet, so Composer reads it from GitHub.
+
+## Sending
+
+```php
+use Anser\Attachment;
+use Anser\Client;
+
+$anser = new Client('ms_…'); // or new Client() with ANSER_API_KEY set
+
+$sent = $anser->emails->send([
+    'from' => 'Acme <hello@acme.com>',
+    'to' => ['email' => 'amy@example.com', 'name' => 'Amy'], // or 'Amy <amy@example.com>', or a list
+    'subject' => 'Welcome',
+    'html' => '<p>Hi Amy</p>',
+    'attachments' => [Attachment::fromPath('/tmp/invoice.pdf')], // or Attachment::fromBytes('a.txt', $bytes)
+    'tags' => ['category' => 'welcome'],
+    'scheduled_at' => new DateTimeImmutable('+1 hour'), // optional, up to 30 days
+]);
+$sent['id']; // and its status, recipients, tags…
+
+$email = $anser->emails->get($sent['id']); // with the body, attachments and delivery details
+$anser->emails->update($sent['id'], new DateTimeImmutable('+2 hours'));
+$anser->emails->cancel($sent['id']);
+
+// up to 100; all or none, unless atomic is false
+$batch = $anser->emails->sendBatch([
+    ['from' => 'hello@acme.com', 'to' => 'amy@example.com', 'subject' => 'Hi', 'text' => 'Hi Amy'],
+    ['from' => 'hello@acme.com', 'to' => 'bob@example.com', 'subject' => 'Hi', 'text' => 'Hi Bob'],
+], atomic: false);
+$batch['data']; // one per email, null for a refused one
+$batch['errors']; // [['index' => …, 'code' => …, 'message' => …, 'param' => …]]
+```
+
+Every send, batch, reply and forward carries an idempotency key, so a retry never sends twice. Pass your own to make a
+repeated call (a job that runs again) safe too: `$anser->emails->send($params, ['idempotency_key' => "welcome-{$user->id}"])`.
+
+## Lists
+
+```php
+$page = $anser->emails->list(['limit' => 50, 'status' => 'bounced']); // $page->data, $page->hasMore; foreach works too
+
+foreach ($anser->emails->listAll(['status' => 'bounced']) as $email) {
+    echo implode(', ', $email['to']), "\n";
+}
+```
+
+## The inbox
+
+```php
+$address = $anser->inbox->address(); // the workspace's test address
+
+foreach ($anser->inbox->listAll(['to' => 'support@acme.com']) as $received) {
+    $email = $anser->inbox->get($received['id']);
+    echo $email['stripped_text']; // what the sender wrote, without the quoted history
+    $anser->inbox->reply($received['id'], ['text' => 'Thanks, we are on it.']);
+}
+
+$anser->forwardingRules->create('support@acme.com', 'me@example.com');
+```
+
+## Webhooks
+
+```php
+use Anser\Webhook;
+use Anser\WebhookVerificationException;
+
+try {
+    // the body exactly as it arrived
+    $event = Webhook::verify(file_get_contents('php://input'), getallheaders(), getenv('ANSER_WEBHOOK_SECRET'));
+} catch (WebhookVerificationException) {
+    http_response_code(400);
+    exit;
+}
+if ($event['type'] === 'email.bounced') {
+    $emailId = $event['data']['email']['id']; // the email, with its tags; the bounce details beside it
+}
+http_response_code(204);
+```
+
+## Errors
+
+```php
+use Anser\AnserException;
+use Anser\ConnectionException;
+
+try {
+    $anser->emails->send($params);
+} catch (AnserException $e) {
+    $e->statusCode; // 422, also getCode()
+    $e->errorCode; // 'validation_error', 'domain_not_verified', 'daily_quota_exceeded' …
+    $e->param; // the field it is about, e.g. 'to[1]', or null
+    $e->getMessage();
+    $e->requestId; // look it up in the request logs
+} catch (ConnectionException) {
+    // no answer: a timeout or the network
+}
+```
+
+## Options
+
+```php
+new Client('ms_…', [ // default: ANSER_API_KEY
+    'base_url' => 'https://mail.ruoyulab.dev', // default: ANSER_BASE_URL, then the hosted service
+    'max_retries' => 2, // rate limits always; server errors and lost connections only when safe to repeat
+    'timeout' => 60.0, // per attempt, in seconds
+    'headers' => [], // sent with every request
+    'transport' => $transport, // your own Anser\Transport instead of curl
+]);
+
+// and per call
+$anser->emails->get($id, ['timeout' => 5.0, 'max_retries' => 0]);
+```
+
+The other resources follow the [API](https://mail.ruoyulab.dev/docs/api) (reference in Chinese): `domains`, `apiKeys`,
+`webhooks`, `suppressions`, `stats`, `recipients`, `usage` and `logs`.
+
+## License
+
+[MIT](LICENSE)
