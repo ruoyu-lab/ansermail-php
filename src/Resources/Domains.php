@@ -14,10 +14,9 @@ final class Domains extends Resource
      * @param array{timeout?: float, max_retries?: int} $options
      * @return array<string, mixed>
      */
-    public function create(string $name, ?string $region = null, array $options = []): array
+    public function create(string $name, array $options = []): array
     {
-        $body = $region === null ? ['name' => $name] : ['name' => $name, 'region' => $region];
-        return self::object($this->http->request('POST', '/domains', [], $body, $options));
+        return self::object($this->http->request('POST', '/domains', [], ['name' => $name], $options));
     }
 
     /**
@@ -57,6 +56,19 @@ final class Domains extends Resource
     public function verify(string $id, array $options = []): array
     {
         return self::object($this->http->request('POST', '/domains/' . Http::path($id) . '/verify', options: $options));
+    }
+
+    /**
+     * Add the records that are not in effect yet at Cloudflare, with an API token that can edit the zone's DNS. The token
+     * is used for this call only and never stored.
+     *
+     * @param array{timeout?: float, max_retries?: int} $options
+     * @return array<string, mixed> `object: "dns_setup"`, the `zone`, a `results` entry per record, and the `domain`
+     */
+    public function addToCloudflare(string $id, string $token, array $options = []): array
+    {
+        $path = '/domains/' . Http::path($id) . '/dns/cloudflare';
+        return self::object($this->http->request('POST', $path, [], ['token' => $token], $options));
     }
 
     /**

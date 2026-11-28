@@ -13,6 +13,7 @@ use Anser\Resources\Logs;
 use Anser\Resources\Recipients;
 use Anser\Resources\Stats;
 use Anser\Resources\Suppressions;
+use Anser\Resources\Templates;
 use Anser\Resources\Usage;
 use Anser\Resources\Webhooks;
 
@@ -27,10 +28,17 @@ use Anser\Resources\Webhooks;
  *         'html' => '<p>Hi Amy</p>',
  *         'tags' => ['category' => 'welcome'],
  *     ]);
+ *
+ *     // Or with a published template, by its alias
+ *     $anser->emails->send([
+ *         'to' => 'amy@example.com',
+ *         'template' => ['id' => 'welcome', 'variables' => ['name' => 'Amy']],
+ *     ]);
  */
 final class Client
 {
     public readonly Emails $emails;
+    public readonly Templates $templates;
     public readonly Inbox $inbox;
     public readonly ForwardingRules $forwardingRules;
     public readonly Domains $domains;
@@ -58,6 +66,7 @@ final class Client
             $options['transport'] ?? new CurlTransport(),
         );
         $this->emails = new Emails($http);
+        $this->templates = new Templates($http);
         $this->inbox = new Inbox($http);
         $this->forwardingRules = new ForwardingRules($http);
         $this->domains = new Domains($http);

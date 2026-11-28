@@ -156,6 +156,39 @@ final class ClientTest extends TestCase
         self::assertSame(['emails' => [$email], 'atomic' => false], $req['body']);
     }
 
+    public function testTemplates(): void
+    {
+        $this->anser->emails->send(['to' => 'amy@example.com', 'template' => ['id' => 'welcome', 'variables' => []]]);
+        $this->anser->emails->send(['to' => 'amy@example.com', 'template' => ['id' => 'welcome', 'variables' => ['name' => 'Amy']]]);
+        $this->transport->answer = static fn () => ['status' => 200, 'headers' => [], 'body' => '{"object":"template","id":"t1"}'];
+        $this->anser->templates->create(['name' => 'Welcome', 'alias' => 'welcome', 'html' => '<p>Hi {{name}}</p>']);
+        $this->anser->templates->update('welcome', ['subject' => 'Hi {{name}}', 'from' => null]);
+        $this->anser->templates->publish('welcome');
+        $this->anser->templates->restore('welcome', 2);
+        $this->anser->templates->duplicate('a/b');
+        $this->anser->templates->render(['html' => '{{x}}', 'variables' => []]);
+        $this->transport->answer = static fn () => ['status' => 200, 'headers' => [], 'body' => '{"object":"list","has_more":false,"data":[{"version":1}]}'];
+        self::assertSame([['version' => 1]], $this->anser->templates->versions('welcome'));
+        $this->anser->templates->list(['q' => 'wel', 'limit' => 5]);
+
+        $calls = array_map(
+            static fn (array $r) => [$r['method'], substr($r['url'], strlen('https://anser.test')), $r['body']],
+            $this->transport->requests,
+        );
+        self::assertSame([
+            ['POST', '/v1/emails', ['to' => 'amy@example.com', 'template' => ['id' => 'welcome']]],
+            ['POST', '/v1/emails', ['to' => 'amy@example.com', 'template' => ['id' => 'welcome', 'variables' => ['name' => 'Amy']]]],
+            ['POST', '/v1/templates', ['name' => 'Welcome', 'alias' => 'welcome', 'html' => '<p>Hi {{name}}</p>']],
+            ['PATCH', '/v1/templates/welcome', ['subject' => 'Hi {{name}}', 'from' => null]],
+            ['POST', '/v1/templates/welcome/publish', null],
+            ['POST', '/v1/templates/welcome/versions/2/restore', null],
+            ['POST', '/v1/templates/a%2Fb/duplicate', []],
+            ['POST', '/v1/templates/render', ['html' => '{{x}}']],
+            ['GET', '/v1/templates/welcome/versions', null],
+            ['GET', '/v1/templates?q=wel&limit=5', null],
+        ], $calls);
+    }
+
     public function testWalksEveryPage(): void
     {
         $this->transport->answer = fn ($req) => [

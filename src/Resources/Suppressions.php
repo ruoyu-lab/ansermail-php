@@ -11,7 +11,7 @@ use Anser\Page;
 final class Suppressions extends Resource
 {
     /**
-     * @param array{limit?: int, after?: string, before?: string, q?: string} $params
+     * @param array{limit?: int, after?: string, before?: string, q?: string, reason?: 'hard_bounce'|'complaint'|'manual'} $params
      * @param array{timeout?: float, max_retries?: int} $options
      */
     public function list(array $params = [], array $options = []): Page
@@ -20,7 +20,7 @@ final class Suppressions extends Resource
     }
 
     /**
-     * @param array{limit?: int, q?: string} $params
+     * @param array{limit?: int, q?: string, reason?: 'hard_bounce'|'complaint'|'manual'} $params
      * @param array{timeout?: float, max_retries?: int} $options
      * @return \Generator<int, array<string, mixed>>
      */

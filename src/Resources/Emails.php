@@ -14,7 +14,11 @@ final class Emails extends Resource
      * `'Amy <amy@example.com>'` or `['email' => 'amy@example.com', 'name' => 'Amy']`; tags are `['category' => 'welcome']`;
      * attachments take base64 `content` (see `Anser\Attachment`); `scheduled_at` may be a `DateTimeInterface`.
      *
-     * @param array<string, mixed> $params from, to, subject, html, text, cc, bcc, reply_to, headers, attachments, tags, scheduled_at
+     * With `'template' => ['id' => 'welcome', 'variables' => ['name' => 'Amy']]` the content comes from the template's
+     * latest published version instead: leave out `html` and `text`; `from`, `subject` and `reply_to` may be left out
+     * too, and when given they win over the template's.
+     *
+     * @param array<string, mixed> $params from, to, subject, html, text, template, cc, bcc, reply_to, headers, attachments, tags, scheduled_at
      * @param array{idempotency_key?: string, timeout?: float, max_retries?: int} $options
      * @return array<string, mixed> the email: id, status, recipients, tags…
      */
@@ -126,6 +130,10 @@ final class Emails extends Resource
     {
         if (isset($params['scheduled_at']) && $params['scheduled_at'] instanceof \DateTimeInterface) {
             $params['scheduled_at'] = self::time($params['scheduled_at']);
+        }
+        // An empty PHP array is a JSON list; the variables must be an object
+        if (is_array($params['template'] ?? null) && ($params['template']['variables'] ?? null) === []) {
+            unset($params['template']['variables']);
         }
         return $params;
     }
