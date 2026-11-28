@@ -169,7 +169,7 @@ final class ClientTest extends TestCase
         $this->anser->templates->render(['html' => '{{x}}', 'variables' => []]);
         $this->transport->answer = static fn () => ['status' => 200, 'headers' => [], 'body' => '{"object":"list","has_more":false,"data":[{"version":1}]}'];
         self::assertSame([['version' => 1]], $this->anser->templates->versions('welcome'));
-        $this->anser->templates->list(['q' => 'wel', 'limit' => 5]);
+        $this->anser->templates->list(['q' => 'wel', 'limit' => 5, 'preview' => true]);
 
         $calls = array_map(
             static fn (array $r) => [$r['method'], substr($r['url'], strlen('https://anser.test')), $r['body']],
@@ -185,7 +185,7 @@ final class ClientTest extends TestCase
             ['POST', '/v1/templates/a%2Fb/duplicate', []],
             ['POST', '/v1/templates/render', ['html' => '{{x}}']],
             ['GET', '/v1/templates/welcome/versions', null],
-            ['GET', '/v1/templates?q=wel&limit=5', null],
+            ['GET', '/v1/templates?q=wel&limit=5&preview=true', null],
         ], $calls);
     }
 

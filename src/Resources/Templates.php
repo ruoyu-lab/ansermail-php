@@ -35,9 +35,10 @@ final class Templates extends Resource
     }
 
     /**
-     * One page, newest first; `q` matches the name and the alias.
+     * One page, newest first; `q` matches the name and the alias. `preview` true adds `preview` to each: the draft
+     * rendered with `suggested_variables` (`html`, `text`, `unavailable` = `error` | `too_large` | null).
      *
-     * @param array{limit?: int, after?: string, before?: string, q?: string} $params
+     * @param array{limit?: int, after?: string, before?: string, q?: string, preview?: bool} $params
      * @param array{timeout?: float, max_retries?: int} $options
      */
     public function list(array $params = [], array $options = []): Page
@@ -48,7 +49,7 @@ final class Templates extends Resource
     /**
      * Every template matching, page after page.
      *
-     * @param array{limit?: int, q?: string} $params
+     * @param array{limit?: int, q?: string, preview?: bool} $params
      * @param array{timeout?: float, max_retries?: int} $options
      * @return \Generator<int, array<string, mixed>>
      */
