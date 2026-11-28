@@ -11,7 +11,9 @@ use Anser\Page;
 final class Inbox extends Resource
 {
     /**
-     * @param array{limit?: int, after?: string, before?: string, to?: string|list<string>, from?: string, start_date?: string, end_date?: string, q?: string, kind?: string, status?: string, in_reply_to_email_id?: string} $params
+     * `domain` is the domain of the receiving address; `read` false lists unread emails only.
+     *
+     * @param array{limit?: int, after?: string, before?: string, to?: string|list<string>, from?: string, start_date?: string, end_date?: string, q?: string, kind?: string, status?: string, in_reply_to_email_id?: string, domain?: string, read?: bool} $params
      * @param array{timeout?: float, max_retries?: int} $options
      */
     public function list(array $params = [], array $options = []): Page
@@ -41,6 +43,29 @@ final class Inbox extends Resource
     }
 
     /**
+     * Mark it read (keeping the first time) or unread; shared by the whole workspace.
+     *
+     * @param array{timeout?: float, max_retries?: int} $options
+     * @return array<string, mixed>
+     */
+    public function setRead(string $id, bool $read, array $options = []): array
+    {
+        return self::object($this->http->request('PATCH', '/inbox/' . Http::path($id), [], ['read' => $read], $options));
+    }
+
+    /**
+     * Mark up to 100 emails read or unread; returns those marked (ids not found are skipped).
+     *
+     * @param list<string> $ids
+     * @param array{timeout?: float, max_retries?: int} $options
+     * @return list<array<string, mixed>>
+     */
+    public function mark(array $ids, bool $read, array $options = []): array
+    {
+        return self::data($this->http->request('POST', '/inbox/mark', [], ['ids' => $ids, 'read' => $read], $options));
+    }
+
+    /**
      * Deletes it with its attachments and raw message.
      *
      * @param array{timeout?: float, max_retries?: int} $options
@@ -49,6 +74,29 @@ final class Inbox extends Resource
     public function delete(string $id, array $options = []): array
     {
         return self::object($this->http->request('DELETE', '/inbox/' . Http::path($id), options: $options));
+    }
+
+    /**
+     * Delete up to 100 emails; returns those deleted (ids not found are skipped).
+     *
+     * @param list<string> $ids
+     * @param array{timeout?: float, max_retries?: int} $options
+     * @return list<array<string, mixed>>
+     */
+    public function deleteMany(array $ids, array $options = []): array
+    {
+        return self::data($this->http->request('POST', '/inbox/delete', [], ['ids' => $ids], $options));
+    }
+
+    /**
+     * How many emails, and unread ones, each receiving domain has.
+     *
+     * @param array{timeout?: float, max_retries?: int} $options
+     * @return array<string, mixed>
+     */
+    public function summary(array $options = []): array
+    {
+        return self::object($this->http->request('GET', '/inbox/summary', options: $options));
     }
 
     /**

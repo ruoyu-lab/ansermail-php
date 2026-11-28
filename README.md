@@ -91,11 +91,15 @@ foreach ($anser->emails->listAll(['status' => 'bounced']) as $email) {
 ```php
 $address = $anser->inbox->address(); // the workspace's test address
 
-foreach ($anser->inbox->listAll(['to' => 'support@acme.com']) as $received) {
+foreach ($anser->inbox->listAll(['to' => 'support@acme.com', 'read' => false]) as $received) {
     $email = $anser->inbox->get($received['id']);
     echo $email['stripped_text']; // what the sender wrote, without the quoted history
     $anser->inbox->reply($received['id'], ['text' => 'Thanks, we are on it.']);
+    $anser->inbox->setRead($received['id'], true); // read state is shared by the workspace
 }
+
+$summary = $anser->inbox->summary(); // unread counts, per receiving domain too
+$anser->inbox->mark($ids, true); // or deleteMany($ids), up to 100 at a time
 
 $anser->forwardingRules->create('support@acme.com', 'me@example.com');
 ```

@@ -220,6 +220,22 @@ final class ClientTest extends TestCase
         self::assertSame('https://anser.test/v1/emails/e1/attachments/a%2F1', $this->transport->requests[1]['url']);
     }
 
+    public function testInboxMarksAndDeletesInBatches(): void
+    {
+        $this->transport->answer = fn () => ['status' => 200, 'headers' => [], 'body' => '{"object":"list","has_more":false,"data":[{"id":"r1"}]}'];
+        self::assertSame([['id' => 'r1']], $this->anser->inbox->mark(['r1', 'r2'], true));
+        self::assertSame([['id' => 'r1']], $this->anser->inbox->deleteMany(['r1']));
+        $this->anser->inbox->list(['domain' => 'acme.com', 'read' => false]);
+        self::assertSame(
+            [
+                ['POST', 'https://anser.test/v1/inbox/mark', ['ids' => ['r1', 'r2'], 'read' => true]],
+                ['POST', 'https://anser.test/v1/inbox/delete', ['ids' => ['r1']]],
+                ['GET', 'https://anser.test/v1/inbox?domain=acme.com&read=false', null],
+            ],
+            array_map(fn ($r) => [$r['method'], $r['url'], $r['body']], $this->transport->requests),
+        );
+    }
+
     public function testCurlTimesOutAndFailsToConnect(): void
     {
         $client = new Client('ms_test', ['base_url' => 'http://127.0.0.1:9', 'max_retries' => 0]);
